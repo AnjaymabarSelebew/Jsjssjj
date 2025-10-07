@@ -1,0 +1,68 @@
+name: Generate Activity
+
+on:
+  workflow_dispatch:
+    inputs:
+      commits:
+        description: "Jumlah commit"
+        required: true
+        default: "20"
+      pull_requests:
+        description: "Jumlah pull request"
+        required: true
+        default: "10"
+      issues:
+        description: "Jumlah issue"
+        required: true
+        default: "5"
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GIT_USER: "anjaymabarselebew"
+      GIT_EMAIL: "125349560+AnjaymabarSelebew@users.noreply.github.com"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Git
+        run: |
+          git config --global user.name "${GIT_USER}"
+          git config --global user.email "${GIT_EMAIL}"
+
+      - name: Generate commits
+        run: |
+          count=${{ github.event.inputs.commits }}
+          for i in $(seq 1 $count); do
+            echo "Commit number $i" >> activity_log.txt
+            git add activity_log.txt
+            git commit -m "Commit ke-$i"
+          done
+          git push origin main
+
+      - name: Create Pull Requests
+        run: |
+          num_pr=${{ github.event.inputs.pull_requests }}
+          for i in $(seq 1 $num_pr); do
+            branch="feature-${i}"
+            git checkout -b "$branch"
+            echo "PR ke-$i" >> pr_log.txt
+            git add pr_log.txt
+            git commit -m "PR commit ke-$i"
+            git push origin "$branch"
+            gh pr create --title "Pull Request #$i" --body "PR otomatis ke-$i" --base main --head "$branch" || echo "Gagal buat PR #$i"
+          done
+
+      - name: Create Issues
+        run: |
+          num_issues=${{ github.event.inputs.issues }}
+          for i in $(seq 1 $num_issues); do
+            gh issue create --title "Issue #$i" --body "Deskripsi issue otomatis ke-$i"
+          done
