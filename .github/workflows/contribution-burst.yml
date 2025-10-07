@@ -1,0 +1,71 @@
+name: Auto Contribution Generator
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 0 * * *"  # jalan tiap hari jam 00:00 (bisa kamu ubah)
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Git identity
+      run: |
+        git config --global user.name "anjaymabarselebew"
+        git config --global user.email "125349560+AnjaymabarSelebew@users.noreply.github.com"
+        # ganti "anjaymabarselebew" dengan username GitHub kamu
+
+    - name: Generate Commits / Issues / PR
+      env:
+        YEAR: 2025
+        TOTAL_COMMITS: 1500   # ubah jumlah commit di sini
+        TOTAL_ISSUES: 15     # ubah jumlah issue di sini
+        TOTAL_PRS: 10        # ubah jumlah pull request di sini
+      run: |
+        mkdir -p generated
+
+        echo "=== Membuat $TOTAL_COMMITS commit ==="
+        for i in $(seq 1 $TOTAL_COMMITS)
+        do
+          echo "Commit ke-$i dibuat pada $(date)" > generated/file_$i.txt
+          git add generated/file_$i.txt
+
+          # Tambahkan waktu unik agar commit dihitung terpisah
+          GIT_COMMITTER_DATE="$(date -d "$YEAR-01-01 +$i seconds" --iso-8601=seconds)" \
+          GIT_AUTHOR_DATE="$(date -d "$YEAR-01-01 +$i seconds" --iso-8601=seconds)" \
+          git commit -m "Generated commit ke-$i ($YEAR)"
+
+          sleep 0.3
+        done
+
+        echo "Push ke branch main..."
+        git push https://${{ secrets.PAT_TOKEN }}@github.com/${{ github.repository }} HEAD:main
+
+        echo "=== Membuat $TOTAL_ISSUES issue ==="
+        for i in $(seq 1 $TOTAL_ISSUES)
+        do
+          gh issue create --title "Otomatis Issue #$i" --body "Ini adalah issue otomatis ke-$i untuk meningkatkan aktivitas."
+          sleep 0.5
+        done
+
+        echo "=== Membuat $TOTAL_PRS PR ==="
+        for i in $(seq 1 $TOTAL_PRS)
+        do
+          BRANCH="auto-pr-$i"
+          git checkout -b $BRANCH
+          echo "Update PR $i" > "generated/pr_$i.txt"
+          git add generated/pr_$i.txt
+          git commit -m "PR otomatis ke-$i"
+          git push https://${{ secrets.PAT_TOKEN }}@github.com/${{ github.repository }} HEAD:$BRANCH
+          gh pr create --title "Pull Request Otomatis #$i" --body "PR otomatis ke-$i." --base main --head $BRANCH
+          git checkout main
+          sleep 1
+        done
